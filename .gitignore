@@ -1,0 +1,4 @@
+# Large files (over 100MB)
+*.qcow2
+*.deb
+*.tar.xz

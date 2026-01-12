@@ -1,3 +1,16 @@
+/* -*- C -*-
+ * fb536.h -- definitions for the fb536 framebuffer char module
+ *
+ * Based on scullc from "Linux Device Drivers" by Alessandro Rubini
+ * and Jonathan Corbet, published by O'Reilly & Associates.
+ *
+ * The source code can be freely used, adapted, and redistributed
+ * in source or binary form. An acknowledgment that the code comes
+ * from the book "Linux Device Drivers" is appreciated.
+ *
+ * Modified for CEng 536 - Fall 2025 - Homework 3
+ */
+
 #ifndef _FB536_H_
 #define _FB536_H_
 
