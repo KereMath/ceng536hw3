@@ -1,15 +1,3 @@
-/* -*- C -*-
- * main.c -- fb536 framebuffer char module
- *
- * Based on scullc from "Linux Device Drivers" by Alessandro Rubini
- * and Jonathan Corbet, published by O'Reilly & Associates.
- *
- * The source code can be freely used, adapted, and redistributed
- * in source or binary form. An acknowledgment that the code comes
- * from the book "Linux Device Drivers" is appreciated.
- *
- * Modified for CEng 536 - Fall 2025 - Homework 3
- */
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -44,7 +32,6 @@ module_param(numminors, int, S_IRUGO);
 module_param(width, int, S_IRUGO);
 module_param(height, int, S_IRUGO);
 
-/* Device Structure */
 struct fb536_dev {
     unsigned char *data;
     unsigned long width;
@@ -55,7 +42,6 @@ struct fb536_dev {
     struct list_head file_list;
 };
 
-/* File Private Data */
 struct fb536_file_desc {
     struct fb536_dev *dev;
     struct fb_viewport viewport;
@@ -67,14 +53,12 @@ struct fb536_file_desc {
 
 struct fb536_dev *fb536_devices;
 
-/* Helper: Check Intersection */
 static int viewports_intersect(struct fb_viewport *a, struct fb_viewport *b) {
     if (a->x >= b->x + b->width || b->x >= a->x + a->width) return 0;
     if (a->y >= b->y + b->height || b->y >= a->y + a->height) return 0;
     return 1;
 }
 
-/* Helper: Notify waiting threads */
 static void fb536_notify_waiters(struct fb536_dev *dev, struct fb_viewport *modified_region) {
     struct fb536_file_desc *desc;
     list_for_each_entry(desc, &dev->file_list, node) {
@@ -85,7 +69,6 @@ static void fb536_notify_waiters(struct fb536_dev *dev, struct fb_viewport *modi
     }
 }
 
-/* Open */
 static int fb536_open(struct inode *inode, struct file *filp) {
     struct fb536_dev *dev;
     struct fb536_file_desc *desc;
@@ -112,7 +95,6 @@ static int fb536_open(struct inode *inode, struct file *filp) {
     return 0;
 }
 
-/* Release */
 static int fb536_release(struct inode *inode, struct file *filp) {
     struct fb536_file_desc *desc = filp->private_data;
     struct fb536_dev *dev = desc->dev;
@@ -125,7 +107,6 @@ static int fb536_release(struct inode *inode, struct file *filp) {
     return 0;
 }
 
-/* Read */
 static ssize_t fb536_read(struct file *filp, char __user *buf, size_t count, loff_t *f_pos) {
     struct fb536_file_desc *desc = filp->private_data;
     struct fb536_dev *dev = desc->dev;
@@ -134,6 +115,14 @@ static ssize_t fb536_read(struct file *filp, char __user *buf, size_t count, lof
 
     if (mutex_lock_interruptible(&dev->lock))
         return -ERESTARTSYS;
+
+    if (desc->viewport.x >= dev->width ||
+        desc->viewport.y >= dev->height ||
+        desc->viewport.x + desc->viewport.width > dev->width ||
+        desc->viewport.y + desc->viewport.height > dev->height) {
+        retval = 0;
+        goto out;
+    }
 
     vp_size = (unsigned long)desc->viewport.width * (unsigned long)desc->viewport.height;
 
@@ -175,7 +164,6 @@ out:
     return retval;
 }
 
-/* Write */
 static ssize_t fb536_write(struct file *filp, const char __user *buf, size_t count, loff_t *f_pos) {
     struct fb536_file_desc *desc = filp->private_data;
     struct fb536_dev *dev = desc->dev;
@@ -187,6 +175,14 @@ static ssize_t fb536_write(struct file *filp, const char __user *buf, size_t cou
 
     if (mutex_lock_interruptible(&dev->lock))
         return -ERESTARTSYS;
+
+    if (desc->viewport.x >= dev->width ||
+        desc->viewport.y >= dev->height ||
+        desc->viewport.x + desc->viewport.width > dev->width ||
+        desc->viewport.y + desc->viewport.height > dev->height) {
+        retval = 0;
+        goto out;
+    }
 
     vp_size = (unsigned long)desc->viewport.width * (unsigned long)desc->viewport.height;
     if (*f_pos >= vp_size) {
@@ -266,7 +262,6 @@ out:
     return retval;
 }
 
-/* Seek */
 static loff_t fb536_llseek(struct file *filp, loff_t off, int whence) {
     struct fb536_file_desc *desc = filp->private_data;
     unsigned long vp_size = (unsigned long)desc->viewport.width * (unsigned long)desc->viewport.height;
@@ -283,7 +278,6 @@ static loff_t fb536_llseek(struct file *filp, loff_t off, int whence) {
     return newpos;
 }
 
-/* Ioctl */
 static long fb536_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
     struct fb536_file_desc *desc = filp->private_data;
     struct fb536_dev *dev = desc->dev;
@@ -360,6 +354,9 @@ static long fb536_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) 
             break;
 
         case FB536_IOCWAIT:
+            if ((filp->f_flags & O_ACCMODE) == O_WRONLY)
+                return -EINVAL;
+
             mutex_lock(&dev->lock);
             desc->wake_flag = 0;
             mutex_unlock(&dev->lock);
@@ -398,7 +395,6 @@ static void fb536_setup_cdev(struct fb536_dev *dev, int index)
         printk(KERN_NOTICE "Error %d adding fb536%d", err, index);
 }
 
-/* Module Init */
 static int __init fb536_init(void)
 {
     int result, i;
@@ -452,7 +448,6 @@ fail:
     return result;
 }
 
-/* Module Exit */
 static void __exit fb536_exit(void)
 {
     int i;
