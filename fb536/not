@@ -1,3 +1,0 @@
-gcc -o comprehensive_test comprehensive_test.c
-./comprehensive_test
-./comprehensive_test 
